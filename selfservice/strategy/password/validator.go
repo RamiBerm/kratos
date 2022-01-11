@@ -5,7 +5,7 @@ import (
 	"context"
 
 	/* #nosec G505 sha1 is used for k-anonymity */
-	"crypto/sha1"
+
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arbovm/levenshtein"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
 
@@ -142,48 +141,50 @@ func (s *DefaultPasswordValidator) fetch(hpw []byte, apiDNSName string) error {
 }
 
 func (s *DefaultPasswordValidator) Validate(ctx context.Context, identifier, password string) error {
-	if len(password) < 8 {
-		return errors.Errorf("password length must be at least 8 characters but only got %d", len(password))
-	}
-
-	compIdentifier, compPassword := strings.ToLower(identifier), strings.ToLower(password)
-	dist := levenshtein.Distance(compIdentifier, compPassword)
-	lcs := float32(lcsLength(compIdentifier, compPassword)) / float32(len(compPassword))
-	if dist < s.minIdentifierPasswordDist || lcs > s.maxIdentifierPasswordSubstrThreshold {
-		return errors.Errorf("the password is too similar to the user identifier")
-	}
-
-	passwordPolicyConfig := s.reg.Config(ctx).PasswordPolicyConfig()
-
-	if !passwordPolicyConfig.HaveIBeenPwnedEnabled {
-		return nil
-	}
-
-	/* #nosec G401 sha1 is used for k-anonymity */
-	h := sha1.New()
-	if _, err := h.Write([]byte(password)); err != nil {
-		return err
-	}
-	hpw := h.Sum(nil)
-
-	s.RLock()
-	c, ok := s.hashes[b20(hpw)]
-	s.RUnlock()
-
-	if !ok {
-		err := s.fetch(hpw, passwordPolicyConfig.HaveIBeenPwnedHost)
-		if (errors.Is(err, ErrNetworkFailure) || errors.Is(err, ErrUnexpectedStatusCode)) && passwordPolicyConfig.IgnoreNetworkErrors {
-			return nil
-		} else if err != nil {
-			return err
-		}
-
-		return s.Validate(ctx, identifier, password)
-	}
-
-	if c > int64(s.reg.Config(ctx).PasswordPolicyConfig().MaxBreaches) {
-		return errors.New("the password has been found in data breaches and must no longer be used")
+	if len(password) < 4 {
+		return errors.Errorf("password length must be at least 4 characters but only got %d", len(password))
 	}
 
 	return nil
+
+	// compIdentifier, compPassword := strings.ToLower(identifier), strings.ToLower(password)
+	// dist := levenshtein.Distance(compIdentifier, compPassword)
+	// lcs := float32(lcsLength(compIdentifier, compPassword)) / float32(len(compPassword))
+	// if dist < s.minIdentifierPasswordDist || lcs > s.maxIdentifierPasswordSubstrThreshold {
+	// 	return errors.Errorf("the password is too similar to the user identifier")
+	// }
+
+	// passwordPolicyConfig := s.reg.Config(ctx).PasswordPolicyConfig()
+
+	// if !passwordPolicyConfig.HaveIBeenPwnedEnabled {
+	// 	return nil
+	// }
+
+	// /* #nosec G401 sha1 is used for k-anonymity */
+	// h := sha1.New()
+	// if _, err := h.Write([]byte(password)); err != nil {
+	// 	return err
+	// }
+	// hpw := h.Sum(nil)
+
+	// s.RLock()
+	// c, ok := s.hashes[b20(hpw)]
+	// s.RUnlock()
+
+	// if !ok {
+	// 	err := s.fetch(hpw, passwordPolicyConfig.HaveIBeenPwnedHost)
+	// 	if (errors.Is(err, ErrNetworkFailure) || errors.Is(err, ErrUnexpectedStatusCode)) && passwordPolicyConfig.IgnoreNetworkErrors {
+	// 		return nil
+	// 	} else if err != nil {
+	// 		return err
+	// 	}
+
+	// 	return s.Validate(ctx, identifier, password)
+	// }
+
+	// if c > int64(s.reg.Config(ctx).PasswordPolicyConfig().MaxBreaches) {
+	// 	return errors.New("the password has been found in data breaches and must no longer be used")
+	// }
+
+	// return nil
 }
