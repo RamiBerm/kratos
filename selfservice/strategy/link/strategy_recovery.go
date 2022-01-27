@@ -146,8 +146,8 @@ func (s *Strategy) createRecoveryLink(w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 
-	req, err := recovery.NewFlow(s.d.Config(r.Context()), expiresIn, s.d.GenerateCSRFToken(r),
-		r, s.d.RecoveryStrategies(r.Context()), flow.TypeBrowser)
+	req, err := recovery.NewFlow(s.d.Config(r.Context()), expiresIn, "",
+		r, s.d.RecoveryStrategies(r.Context()), flow.TypeAPI)
 	if err != nil {
 		s.d.Writer().WriteError(w, r, err)
 		return
@@ -247,6 +247,32 @@ func (s *Strategy) Recover(w http.ResponseWriter, r *http.Request, f *recovery.F
 	}
 }
 
+func (s *Strategy) recoveryIssueSessionApi(w http.ResponseWriter, r *http.Request, f *recovery.Flow, id *identity.Identity) error {
+	f.UI.Messages.Clear()
+	f.State = recovery.StatePassedChallenge
+	f.SetCSRFToken(flow.GetCSRFToken(s.d, w, r, f.Type))
+	f.RecoveredIdentityID = uuid.NullUUID{
+		UUID:  id.ID,
+		Valid: true,
+	}
+	if err := s.d.RecoveryFlowPersister().UpdateRecoveryFlow(r.Context(), f); err != nil {
+		return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+	}
+	sess, err := session.NewActiveSession(id, s.d.Config(r.Context()), time.Now().UTC(), identity.CredentialsTypeRecoveryLink)
+	if err != nil {
+		return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+	}
+
+	if err := s.d.SessionPersister().UpsertSession(r.Context(), sess); err != nil {
+		return errors.WithStack(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	s.d.Writer().Write(w, r, map[string]string{"token": sess.Token})
+	return errors.WithStack(flow.ErrCompletedByStrategy)
+}
+
 func (s *Strategy) recoveryIssueSession(w http.ResponseWriter, r *http.Request, f *recovery.Flow, id *identity.Identity) error {
 	f.UI.Messages.Clear()
 	f.State = recovery.StatePassedChallenge
@@ -313,23 +339,23 @@ func (s *Strategy) recoveryUseToken(w http.ResponseWriter, r *http.Request, body
 	var f *recovery.Flow
 	if !token.FlowID.Valid {
 		f, err = recovery.NewFlow(s.d.Config(r.Context()), time.Until(token.ExpiresAt), s.d.GenerateCSRFToken(r),
-			r, s.d.RecoveryStrategies(r.Context()), flow.TypeBrowser)
+			r, s.d.RecoveryStrategies(r.Context()), flow.TypeAPI)
 		if err != nil {
-			return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+			return s.retryRecoveryFlowWithError(w, r, flow.TypeAPI, err)
 		}
 
 		if err := s.d.RecoveryFlowPersister().CreateRecoveryFlow(r.Context(), f); err != nil {
-			return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+			return s.retryRecoveryFlowWithError(w, r, flow.TypeAPI, err)
 		}
 	} else {
 		f, err = s.d.RecoveryFlowPersister().GetRecoveryFlow(r.Context(), token.FlowID.UUID)
 		if err != nil {
-			return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+			return s.retryRecoveryFlowWithError(w, r, flow.TypeAPI, err)
 		}
 	}
 
 	if err := token.Valid(); err != nil {
-		return s.retryRecoveryFlowWithError(w, r, flow.TypeBrowser, err)
+		return s.retryRecoveryFlowWithError(w, r, flow.TypeAPI, err)
 	}
 
 	recovered, err := s.d.IdentityPool().GetIdentity(r.Context(), token.IdentityID)
@@ -344,7 +370,7 @@ func (s *Strategy) recoveryUseToken(w http.ResponseWriter, r *http.Request, body
 		}
 	}
 
-	return s.recoveryIssueSession(w, r, f, recovered)
+	return s.recoveryIssueSessionApi(w, r, f, recovered)
 }
 
 func (s *Strategy) retryRecoveryFlowWithMessage(w http.ResponseWriter, r *http.Request, ft flow.Type, message *text.Message) error {
