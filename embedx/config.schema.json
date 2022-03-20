@@ -1134,7 +1134,7 @@
                       "description": "Defines the minimum length of the password.",
                       "type": "integer",
                       "default": 8,
-                      "minimum": 6
+                      "minimum": 4
                     },
                     "identifier_similarity_check_enabled": {
                       "title": "Enable password-identifier similarity check",
