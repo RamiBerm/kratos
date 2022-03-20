@@ -40,6 +40,7 @@ type (
 
 		session.HandlerProvider
 		session.ManagementProvider
+		session.PersistenceProvider
 		settings.HandlerProvider
 		settings.FlowPersistenceProvider
 
