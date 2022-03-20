@@ -3,7 +3,7 @@
  *
  * Documentation for all public and administrative Ory Kratos APIs. Public and administrative APIs are exposed on different ports. Public APIs can face the public internet without any protection while administrative APIs should never be exposed without prior authorization. To protect the administative API port you should use something like Nginx, Ory Oathkeeper, or any other technology capable of authorizing incoming requests.
  *
- * API version: v0.8.3-alpha.1.pre.0
+ * API version: 1.0.0
  * Contact: hi@ory.sh
  */
 
@@ -21,9 +21,11 @@ type IdentityCredentialsType string
 
 // List of identityCredentialsType
 const (
-	IDENTITYCREDENTIALSTYPE_PASSWORD IdentityCredentialsType = "password"
-	IDENTITYCREDENTIALSTYPE_TOTP     IdentityCredentialsType = "totp"
-	IDENTITYCREDENTIALSTYPE_OIDC     IdentityCredentialsType = "oidc"
+	IDENTITYCREDENTIALSTYPE_PASSWORD      IdentityCredentialsType = "password"
+	IDENTITYCREDENTIALSTYPE_TOTP          IdentityCredentialsType = "totp"
+	IDENTITYCREDENTIALSTYPE_OIDC          IdentityCredentialsType = "oidc"
+	IDENTITYCREDENTIALSTYPE_WEBAUTHN      IdentityCredentialsType = "webauthn"
+	IDENTITYCREDENTIALSTYPE_LOOKUP_SECRET IdentityCredentialsType = "lookup_secret"
 )
 
 func (v *IdentityCredentialsType) UnmarshalJSON(src []byte) error {
@@ -33,7 +35,7 @@ func (v *IdentityCredentialsType) UnmarshalJSON(src []byte) error {
 		return err
 	}
 	enumTypeValue := IdentityCredentialsType(value)
-	for _, existing := range []IdentityCredentialsType{"password", "totp", "oidc"} {
+	for _, existing := range []IdentityCredentialsType{"password", "totp", "oidc", "webauthn", "lookup_secret"} {
 		if existing == enumTypeValue {
 			*v = enumTypeValue
 			return nil

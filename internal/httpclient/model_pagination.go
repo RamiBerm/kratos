@@ -3,7 +3,7 @@
  *
  * Documentation for all public and administrative Ory Kratos APIs. Public and administrative APIs are exposed on different ports. Public APIs can face the public internet without any protection while administrative APIs should never be exposed without prior authorization. To protect the administative API port you should use something like Nginx, Ory Oathkeeper, or any other technology capable of authorizing incoming requests.
  *
- * API version: v0.8.3-alpha.1.pre.0
+ * API version: 1.0.0
  * Contact: hi@ory.sh
  */
 
@@ -29,7 +29,7 @@ type Pagination struct {
 // will change when the set of required properties is changed
 func NewPagination() *Pagination {
 	this := Pagination{}
-	var page int64 = 0
+	var page int64 = 1
 	this.Page = &page
 	var perPage int64 = 250
 	this.PerPage = &perPage
@@ -41,7 +41,7 @@ func NewPagination() *Pagination {
 // but it doesn't guarantee that properties required by API are set
 func NewPaginationWithDefaults() *Pagination {
 	this := Pagination{}
-	var page int64 = 0
+	var page int64 = 1
 	this.Page = &page
 	var perPage int64 = 250
 	this.PerPage = &perPage
